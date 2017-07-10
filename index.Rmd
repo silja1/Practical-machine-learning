@@ -1,0 +1,118 @@
+---
+title: "Prediction Assignment"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=FALSE,message=FALSE)
+```
+
+##Splitting dataset
+
+
+Since the "test" dataset only includes 20 rows meant for grading, "training" dataset is split to training (70%) and validation (30%) set.
+
+```{r }
+library(caret)
+
+data<-read.csv("pml-training.csv")
+data_test<-read.csv("pml-testing.csv")
+
+inTrain = createDataPartition(data$X, p = 0.7)[[1]]
+training = data[ inTrain,]
+validation = data[-inTrain,]
+```
+
+##Exploratory analysis of datasets provided
+
+###Possible features selection
+
+Some variables are missing in the 20-row dataset meant for grading the assignment. Therefore these variables should not be included in the model either.
+
+```{r }
+library(dplyr)
+library(tidyr)
+library(caret)
+#find variables with missing values only in test set
+data_test_isna<-data.frame(missing_pct=sapply(data_test,function(x) mean(is.na(x))))
+data_test_isna$variable=row.names(data_test_isna)
+data_test_isna<-filter(data_test_isna,missing_pct==1)
+remove_variables<-data_test_isna$variable
+```
+
+Next we identify near-zero variables (more than 95% identical)
+
+```{r }
+#check near zero variables
+nsv <- nearZeroVar(training,saveMetrics=TRUE)
+near_zero<-row.names(nsv[nsv$nzv,])
+```
+
+
+The variable we are predicting is "classe", while variables "X","user_name","raw_timestamp_part_1" ,"cvtd_timestamp","new_window" ,"num_window" identify records and cannot be used in model either. Since it seems that timestamp2 shows time from start of the repetition - should be included as variable.
+
+```{r }
+#what are the left over variables which are possible features in model?
+all_variables<-names(training)
+use_variables<-setdiff(all_variables, c(near_zero,remove_variables,c("classe","X","user_name","raw_timestamp_part_1" ,"cvtd_timestamp","new_window" ,"num_window")))
+```
+
+### Exploration of features
+
+```{r fig.height=45,fig.width=20}
+explore_data<-training%>%
+  select(c("classe",use_variables))
+library(AppliedPredictiveModeling)
+transparentTheme(trans = .4)
+featurePlot(x = explore_data[,-1], 
+            y = explore_data$classe, 
+            plot = "box", 
+            ## Pass in options to bwplot() 
+            scales = list(y = list(relation="free"),
+                          x = list(rot = 90)),  
+            layout = c(5,10 ), 
+            auto.key = list(columns = 2),cex=0.4)
+```
+
+
+##Model fitting
+
+We fit a random forest model with 10-fold cross-validation.
+
+```{r }
+#train random forest
+set.seed(123)
+# define training control - 10-fold cross-validation
+train_control<- trainControl(method="cv", number=10)
+#define formula
+formula<-as.formula(paste0("classe~",paste(use_variables,sep="+",collapse="+")))
+#fit models 
+fit_rf<-train(formula,data=training,method = "rf",trControl=train_control)
+
+```
+
+##Model testing
+
+We test model on validation data set to check out of sample error.
+
+```{r }
+#test on test set
+#predict
+pred_rf<-predict(fit_rf,validation)
+confusionMatrix(validation$classe,pred_rf)
+```
+
+Random forest model shows good performace on validation set (accuracy 99%, out of sample error <1%.
+
+##Model results on test set
+```{r }
+#test on test set
+#predict
+pred_test_rf<-predict(fit_rf,data_test)
+# pred_gbm<-predict(fit_gbm,validation)
+print(data.frame(prediction=pred_test_rf))
+
+```
+
