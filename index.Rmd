@@ -72,7 +72,7 @@ featurePlot(x = explore_data[,-1],
             ## Pass in options to bwplot() 
             scales = list(y = list(relation="free"),
                           x = list(rot = 90)),  
-            layout = c(5,10 ), 
+            layout = c(5,11 ), 
             auto.key = list(columns = 2),cex=0.4)
 ```
 
@@ -104,7 +104,7 @@ pred_rf<-predict(fit_rf,validation)
 confusionMatrix(validation$classe,pred_rf)
 ```
 
-Random forest model shows good performace on validation set (accuracy 99%, out of sample error <1%.
+Random forest model shows good performace on validation set (accuracy 99%, out of sample error <1%).
 
 ##Model results on test set
 ```{r }
@@ -113,6 +113,5 @@ Random forest model shows good performace on validation set (accuracy 99%, out o
 pred_test_rf<-predict(fit_rf,data_test)
 # pred_gbm<-predict(fit_gbm,validation)
 print(data.frame(prediction=pred_test_rf))
-
 ```
 
